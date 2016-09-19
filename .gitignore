@@ -1,0 +1,8 @@
+*.o
+*.lib
+*.bld
+mbed
+.vscode
+.build
+.includes
+mbed_config.h
