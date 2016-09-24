@@ -5,8 +5,10 @@
 
 #include "OnlineMotion.h"
 #include "OfflineMotion.h"
+#include "Stabilize.h"
+#include "CPG.h"
 
-#include "SerialController.h"
+// #include "SerialController.h"
 #include "ActuatorController.h"
 #include "MPU6050.h"
 #include "mbed.h"
@@ -22,9 +24,16 @@ DigitalOut leddd(LED1);
 DigitalOut led2(LED2);
 DigitalOut led3(LED3);
 
-Controlor::Controlor(int16_t* data) : serialcontroller(new SerialController(p13, p14)), actuatorcontroller( new ActuatorController() ),
+Serial pc(USBTX, USBRX);
+
+Controlor::Controlor(int16_t* data) :
+// serialcontroller(new SerialController(p13, p14)),
+actuatorcontroller( new ActuatorController() ),
 mpu6050( new MPU6050() ),
-online( new OnlineMotion(TIMESTEP, 0.9) )
+online( new OnlineMotion(TIMESTEP, 0.9) ),
+stabilize( new Stabilize(mpu6050) ),
+cpg( new CPG(TIMESTEP, mpu6050) ),
+commandSource( new Serial(p13, p14) )
 {
     //Reset joint position to home position
     mpu6050->initialize(); 
@@ -43,6 +52,11 @@ online( new OnlineMotion(TIMESTEP, 0.9) )
     // offline = new OfflineMotion(servo_size);
     
     home();
+
+    pc.baud(115200);
+
+    // setup command receive event
+    commandSource->attach(this, &Controlor::onCommandRecieved);
 }
 
 Controlor::~Controlor()
@@ -104,6 +118,18 @@ void Controlor::setmotion(const int id)
     offline->setUpdatingFlag(true);
 }
 
+
+std::vector< signed short int > combine(auto v1, auto v2)
+{
+    std::vector< signed short int > combined(MOTOR_NUM, 0);
+    int i = 0;
+    for (auto elem : combined) {
+        combined[i] = v1[i] + v2[i];
+        ++i;
+    }
+    return combined;
+}
+
 void Controlor::update()
 {
     if (counter % 100 == 0) {
@@ -114,15 +140,30 @@ void Controlor::update()
         }
     }
     ++counter;
-    // stabilize
-    int16_t ax, ay, az;
-    int16_t gx, gy, gz;
-    mpu6050->getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    printf("%d;%d;%d;%d;%d;%d\r\n",ax,ay,az,gx,gy,gz);
-    online->addPos(3, 0.01 * gy);
-    online->addPos(4, 0.01 * gx);
-    online->addPos(8, -0.01 * gy);
-    online->addPos(9, 0.01 * gx);
+    // // stabilize
+    // int16_t ax, ay, az;
+    // int16_t gx, gy, gz;
+    // mpu6050->getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    // pc.printf("%d, %d, %d, %d, %d, %d\r\n", ax, ay, az, gx, gy, gz);
+    // online->addPos(3, 0.01 * gy);
+    // online->addPos(4, 0.01 * gx);
+    // online->addPos(8, -0.01 * gy);
+    // online->addPos(9, 0.01 * gx);
+    stabilize->update();
+    cpg->update();
+    actuatorcontroller->setPosition(
+        combine(
+            stabilize->getFeedBackDiff(),
+            cpg->getTargetPos()
+        )
+    );
+    // cpg->update();
+    // actuatorcontroller->setPosition(
+    //     cpg->getTargetPos()
+    // );
+
+    // online->update();
+    // actuatorcontroller->setPosition( online->getTargetPos() );
 
     // if ( online->isUpdating() ) {
     //     online->update();
@@ -152,4 +193,13 @@ void Controlor::update()
     // 	online->setUpdatingFlag(false);
     // 	home();
     // }
+}
+
+void Controlor::onCommandRecieved() {
+    commandSource->getc();
+    if (led2 == 1) {
+        led2 = 0;
+    } else {
+        led2 = 1;
+    }
 }

@@ -10,7 +10,7 @@
 class Motion
 {
     public:
-        Motion() : updating( false ), target_pos(MOTOR_NUM, 0) {}
+        Motion() : updating( true ), target_pos(MOTOR_NUM, 0) {}
         virtual ~Motion() {}
     protected:
         bool updating;
