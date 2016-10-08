@@ -1,4 +1,4 @@
-const uint16_t HOMEPOS[] = {
+const int16_t HOMEPOS[] = {
 //right leg
 1560,//1560
 1555,

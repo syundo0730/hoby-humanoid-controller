@@ -24,7 +24,6 @@ DigitalOut leddd(LED1);
 DigitalOut led2(LED2);
 DigitalOut led3(LED3);
 
-Serial pc(USBTX, USBRX);
 
 Controlor::Controlor(int16_t* data) :
 // serialcontroller(new SerialController(p13, p14)),
@@ -53,7 +52,6 @@ commandSource( new Serial(p13, p14) )
     
     home();
 
-    pc.baud(115200);
 
     // setup command receive event
     commandSource->attach(this, &Controlor::onCommandRecieved);
@@ -149,7 +147,7 @@ void Controlor::update()
     // online->addPos(4, 0.01 * gx);
     // online->addPos(8, -0.01 * gy);
     // online->addPos(9, 0.01 * gx);
-    stabilize->update();
+    // stabilize->update();
     cpg->update();
     actuatorcontroller->setPosition(
         combine(

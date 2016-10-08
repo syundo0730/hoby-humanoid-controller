@@ -32,9 +32,10 @@ public:
         float v = sum(aFilter) * dt_;
 
         angIndex = angIndex % 20;
-        angFilter[angIndex] = atan2f(0.25*a, v);
+        angFilter[angIndex] = atan2f(a, v);
         ++angIndex;
-        int angFiltered = ave(angFilter);
+
+        float angFiltered = ave(angFilter);
 
         return angFiltered;
     }
